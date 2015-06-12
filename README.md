@@ -7,6 +7,11 @@ A very quick 'n dirty AIF loader for Hopper.  Supports a minimal subset of AIF â
 ### Tested
 * Newt KNoDebug image
 * Senior CirrusNoDebug image
+* Senior DCirrusNoDebug image
+* Newton MP120 (53xxxx)DEU image
+* Newton MP120 (51xxxx) image
+* Newton MP130 (52xxxx) image
+* Newt J1Armistice image
 * Egger 'aif ' resource 128
 * Hammer 'aif ' resources 128, 130, 131, 1000.
 
