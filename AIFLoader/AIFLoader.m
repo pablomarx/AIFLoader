@@ -97,6 +97,9 @@
   _readOnlySize = readOnlySize;
   _readWriteSize = readWriteSize;
   _readWriteOffset = OSReadBigInt32(bytes, 0x34);
+  if (_readWriteOffset == 0) {
+    _readWriteOffset = _readOnlySize;
+  }
   _debugSize = debugSize;
   
   NSObject<HPDetectedFileType> *type = [_services detectedType];
@@ -231,6 +234,9 @@
   
   if (readWriteSize != 0) {
     uint32_t segmentOffset = OSReadBigInt32(bytes, 0x34);
+    if (segmentOffset == 0) {
+      segmentOffset = readOnlySize;
+    }
     
     NSObject<HPSection> *section = createSegmentAndSection(fileOffset, segmentOffset, readWriteSize, @"DATA");
     section.pureDataSection = YES;
