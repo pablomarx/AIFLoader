@@ -171,6 +171,7 @@
 
     if ((type & 2) == 2) { // symbol names code
       [file setName:name forVirtualAddress:address reason:NCReason_Import];
+      [file addPotentialProcedure:address];
     }
     else if ((type & 4) == 4) { // symbol names data
       [file setName:name forVirtualAddress:address reason:NCReason_Import];
