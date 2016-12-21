@@ -1,8 +1,8 @@
 //
 // Hopper Disassembler SDK
 //
-// (c)2014 - Cryptic Apps SARL. All Rights Reserved.
-// http://www.hopperapp.com
+// (c)2016 - Cryptic Apps SARL. All Rights Reserved.
+// https://www.hopperapp.com
 //
 // THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
 // KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
@@ -11,7 +11,7 @@
 //
 
 #import <Foundation/Foundation.h>
-#import <AppKit/AppKit.h> // for NSModalResponse
+#import "CommonTypes.h"
 
 @protocol HPDisassembledFile;
 @protocol HPSegment;
@@ -35,10 +35,11 @@ typedef void (^CancelBlock)(void);
 
 // Moving using navigation stack
 - (void)gotoVirtualAddress:(Address)virtualAddress;
-- (void)gotoVirtualAddressString:(NSString *)virtualAddressString;
+- (BOOL)gotoVirtualAddressString:(NSString *)virtualAddressString;
 - (void)popAddressFromNavigationStack;
 
 // Background process
+- (void)waitForBackgroundProcessToEnd;
 - (BOOL)backgroundProcessActive;
 - (void)requestBackgroundProcessStop;
 
@@ -51,11 +52,12 @@ typedef void (^CancelBlock)(void);
 // Display message
 - (void)logStringMessage:(NSString *)message;
 - (void)logErrorStringMessage:(NSString *)message;
-- (NSModalResponse)displayAlertWithMessageText:(NSString *)text
-                                 defaultButton:(NSString *)defaultButton
-                               alternateButton:(NSString *)alternateButton
-                                   otherButton:(NSString *)otherButton
-                               informativeText:(NSString *)message;
+- (void)logInfoMessage:(NSString *)message;
+- (NSInteger)displayAlertWithMessageText:(NSString *)text
+                           defaultButton:(NSString *)defaultButton
+                         alternateButton:(NSString *)alternateButton
+                             otherButton:(NSString *)otherButton
+                         informativeText:(NSString *)message;
 
 // Reading and modifying file
 // These operations are performed in the endianess of the CPU module attached

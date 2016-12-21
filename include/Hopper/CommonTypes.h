@@ -1,8 +1,8 @@
 //
 // Hopper Disassembler SDK
 //
-// (c)2014 - Cryptic Apps SARL. All Rights Reserved.
-// http://www.hopperapp.com
+// (c)2016 - Cryptic Apps SARL. All Rights Reserved.
+// https://www.hopperapp.com
 //
 // THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
 // KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
@@ -12,6 +12,10 @@
 
 #ifndef _HOPPER_COMMONTYPES_H_
 #define _HOPPER_COMMONTYPES_H_
+
+#ifdef __OBJC__
+    #import <Foundation/Foundation.h>
+#endif
 
 // Addresses
 
@@ -29,22 +33,32 @@ typedef uint32_t Color;
 #define NO_COLOR 0
 
 #if defined(__OBJC__)
-#define HP_BEGIN_DECL_ENUM(BASE,TYPE) typedef NS_ENUM(BASE,TYPE)
-#define HP_END_DECL_ENUM(TYPE)
-#define HP_BEGIN_DECL_OPTIONS(BASE,TYPE) typedef NS_OPTIONS(BASE,TYPE)
-#define HP_END_DECL_OPTIONS(TYPE)
+# if defined(NS_ENUM)
+#  define HP_BEGIN_DECL_ENUM(BASE,TYPE) typedef NS_ENUM(BASE,TYPE)
+#  define HP_END_DECL_ENUM(TYPE)
+# else
+#  define HP_BEGIN_DECL_ENUM(BASE,TYPE) typedef enum TYPE : BASE TYPE; enum TYPE : BASE
+#  define HP_END_DECL_ENUM(TYPE)
+# endif
+# if defined(NS_OPTIONS)
+#  define HP_BEGIN_DECL_OPTIONS(BASE,TYPE) typedef NS_OPTIONS(BASE,TYPE)
+#  define HP_END_DECL_OPTIONS(TYPE)
+# else
+#  define HP_BEGIN_DECL_OPTIONS(BASE,TYPE) typedef enum TYPE : BASE TYPE; enum TYPE : BASE
+#  define HP_END_DECL_OPTIONS(TYPE)
+# endif
 #else
-#define HP_BEGIN_DECL_ENUM(BASE,TYPE) typedef enum
-#define HP_END_DECL_ENUM(TYPE) TYPE
-#define HP_BEGIN_DECL_OPTIONS(BASE,TYPE) typedef enum
-#define HP_END_DECL_OPTIONS(TYPE) TYPE
+#  define HP_BEGIN_DECL_ENUM(BASE,TYPE) typedef enum : BASE
+#  define HP_END_DECL_ENUM(TYPE) TYPE
+#  define HP_BEGIN_DECL_OPTIONS(BASE,TYPE) typedef enum : BASE
+#  define HP_END_DECL_OPTIONS(TYPE) TYPE
 #endif
 
 HP_BEGIN_DECL_ENUM(uint8_t, ByteType) {
-	Type_Undefined,
-	Type_Outside,
+    Type_Undefined,
+    Type_Outside,
 
-	Type_Next,      /// This memory block info is part of the previous bloc
+    Type_Next,      /// This memory block info is part of the previous bloc
 
     Type_Int8,
     Type_Int16,
@@ -56,8 +70,8 @@ HP_BEGIN_DECL_ENUM(uint8_t, ByteType) {
 
     Type_Data,      /// METATYPE : Only used for searching, no bytes have this type!
     
-	Type_Code,
-	Type_Procedure,
+    Type_Code,
+    Type_Procedure,
 
     Type_Structure
 }
@@ -145,7 +159,9 @@ HP_BEGIN_DECL_ENUM(NSUInteger, TypeDescType) {
     TypeDesc_Short,
     TypeDesc_UShort,
 
-    TypeDesc_FunctionPointer
+    TypeDesc_FunctionPointer,
+
+    TypeDesc_Enum
 }
 HP_END_DECL_ENUM(TypeDescType);
 
@@ -166,6 +182,7 @@ HP_BEGIN_DECL_ENUM(NSUInteger, ArgFormat) {
     Format_Binary,
 
     Format_Structured,
+    Format_Enum,
 
     Format_Negate = 0x20,
     Format_LeadingZeroes = 0x40,
@@ -218,6 +235,7 @@ HP_BEGIN_DECL_ENUM(NSUInteger, RegClass) {
     RegClass_X86_MMX,
     RegClass_X86_SSE,
     RegClass_X86_AVX,
+    RegClass_X86_SEG,
 
     // ARM
     RegClass_ARM_VFP_Single = RegClass_FirstUserClass,
@@ -285,6 +303,7 @@ HP_END_DECL_ENUM(CallingConvention);
 
 HP_BEGIN_DECL_ENUM(NSUInteger, FileLoaderLoadingStatus) {
     DIS_OK,
+    DIS_InvalidArguments,
     DIS_BadFormat,
     DIS_DebugMismatch,
     DIS_DebugUUIDMismatch,
@@ -297,7 +316,8 @@ HP_BEGIN_DECL_ENUM(NSUInteger, LOCKind) {
     LOC_Address,
     LOC_Checkbox,
     LOC_CPU,
-    LOC_StringList
+    LOC_StringList,
+    LOC_ComboxBox
 }
 HP_END_DECL_ENUM(LOCKind);
 
@@ -353,6 +373,16 @@ HP_BEGIN_DECL_ENUM(NSUInteger, DebuggerType) {
 }
 HP_END_DECL_ENUM(DebuggerType);
 
+// Call Reference
+
+HP_BEGIN_DECL_ENUM(NSUInteger, CallReferenceType) {
+    Call_None,
+    Call_Unknown,
+    Call_Direct,            // A direct call, like JMP, CALL, etc.
+    Call_ObjectiveC         // A call through objc_msgSend
+}
+HP_END_DECL_ENUM(CallReferenceType);
+
 // Decompiler
 #define DECOMPILER_DEFAULT_OPTIONS (Decompiler_RemoveDeadCode | Decompiler_RemoveMacros)
 
@@ -362,5 +392,15 @@ HP_BEGIN_DECL_OPTIONS(NSUInteger, DecompilerOptions) {
     Decompiler_RemoveMacros = 2
 }
 HP_END_DECL_OPTIONS(DecompilerOptions);
+
+// View Modes
+
+HP_BEGIN_DECL_ENUM(NSUInteger, AssemblyViewMode) {
+    ASMVMode_Assembly,
+    ASMVMode_CFG,
+    ASMVMode_PseudoCode,
+    ASMVMode_Hex
+}
+HP_END_DECL_ENUM(AssemblyViewMode);
 
 #endif
