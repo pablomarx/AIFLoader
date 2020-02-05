@@ -1,7 +1,7 @@
 //
 // Hopper Disassembler SDK
 //
-// (c)2016 - Cryptic Apps SARL. All Rights Reserved.
+// (c) Cryptic Apps SARL. All Rights Reserved.
 // https://www.hopperapp.com
 //
 // THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
@@ -68,36 +68,19 @@ HP_BEGIN_DECL_ENUM(uint8_t, ByteType) {
     Type_ASCII,
     Type_Unicode,
 
-    Type_Data,      /// METATYPE : Only used for searching, no bytes have this type!
+    Type_ExternAddress = 0x3D,
+    Type_ExternFunction = 0x3E,
+
+    Type_Align = 0x3F,
+
+    Type_Data = 0x40,      /// METATYPE : Only used for searching, no bytes have this type!
     
     Type_Code,
     Type_Procedure,
 
-    Type_Structure
+    Type_Structure,
 }
 HP_END_DECL_ENUM(ByteType);
-
-HP_BEGIN_DECL_ENUM(uint8_t, ProcedureCreationReason) {
-    PCReason_None,
-    PCReason_Unknown,       // Unknown reason
-    PCReason_User,          // Created by the used
-    PCReason_Script,        // A Python script created the procedure
-    PCReason_Called,        // A call statement has been found somewhere
-    PCReason_Prolog         // A procedure prolog was detected during the analysis
-}
-HP_END_DECL_ENUM(ProcedureCreationReason);
-
-HP_BEGIN_DECL_ENUM(uint8_t, SignatureCreationReason) {
-    SCReason_None,
-    SCReason_Unknown,                   // Unknown reason
-    SCReason_GuessedFromDecompilation,  // Signature built during the decompilation process
-    SCReason_GuessedFromDataFlow,       // Signature built from the data flow analysis.
-    SCReason_Called,                    // Signature built from a method call
-    SCReason_Database,                  // A known signature, from the embedded database
-    SCReason_Demangling,                // From demangling, or decoding a signature string
-    SCReason_User                       // Defined by the user
-}
-HP_END_DECL_ENUM(SignatureCreationReason);
 
 HP_BEGIN_DECL_ENUM(uint8_t, CommentCreationReason) {
     CCReason_None,
@@ -120,51 +103,6 @@ HP_BEGIN_DECL_ENUM(uint8_t, NameCreationReason) {
 }
 HP_END_DECL_ENUM(NameCreationReason);
 
-// Types
-
-HP_BEGIN_DECL_ENUM(NSUInteger, TypeDescType) {
-    TypeDesc_Void,
-
-    // Fixed size primitive types
-    TypeDesc_Int8,
-    TypeDesc_UInt8,
-    TypeDesc_Int16,
-    TypeDesc_UInt16,
-    TypeDesc_Int32,
-    TypeDesc_UInt32,
-    TypeDesc_Int64,
-    TypeDesc_UInt64,
-    TypeDesc_Float,
-    TypeDesc_Double,
-
-    // Primitive types whose size depends on the disassembled file
-    TypeDesc_Int,
-    TypeDesc_UInt,
-    TypeDesc_Long,
-    TypeDesc_ULong,
-    TypeDesc_LongLong,
-    TypeDesc_ULongLong,
-
-    // Non-primitive, structured types
-    TypeDesc_Pointer,
-    TypeDesc_Struct,
-    TypeDesc_Union,
-    TypeDesc_Array,
-
-    TypeDesc_Typedef,
-
-    TypeDesc_Bool,
-    TypeDesc_Char,
-    TypeDesc_UChar,
-    TypeDesc_Short,
-    TypeDesc_UShort,
-
-    TypeDesc_FunctionPointer,
-
-    TypeDesc_Enum
-}
-HP_END_DECL_ENUM(TypeDescType);
-
 // Operand Format
 #define FORMAT_TYPE_MASK  0x1F
 
@@ -184,22 +122,13 @@ HP_BEGIN_DECL_ENUM(NSUInteger, ArgFormat) {
     Format_Structured,
     Format_Enum,
 
+    Format_AddressDiff,
+
     Format_Negate = 0x20,
     Format_LeadingZeroes = 0x40,
     Format_Signed = 0x80
 }
 HP_END_DECL_ENUM(ArgFormat);
-
-// Switch / case Hints
-
-HP_BEGIN_DECL_ENUM(uint8_t, HintValueType) {
-    SwitchHint_None,
-    SwitchHint_AbsoluteAddress,
-    SwitchHint_TableRelative,
-    SwitchHint_PICRelative,
-    SwitchHint_FixedValueRelative
-}
-HP_END_DECL_ENUM(HintValueType);
 
 // Plugin
 
@@ -235,6 +164,10 @@ HP_BEGIN_DECL_ENUM(NSUInteger, RegClass) {
     RegClass_X86_MMX,
     RegClass_X86_SSE,
     RegClass_X86_AVX,
+    RegClass_X86_CR,
+    RegClass_X86_DR,
+    RegClass_X86_Special,
+    RegClass_X86_MemMgmt,
     RegClass_X86_SEG,
 
     // ARM
@@ -242,6 +175,7 @@ HP_BEGIN_DECL_ENUM(NSUInteger, RegClass) {
     RegClass_ARM_VFP_Double,
     RegClass_ARM_VFP_Quad,
     RegClass_ARM_Media,
+    RegClass_ARM_Special,
 
     RegClass_LastUserClass = MAX_REGISTER_CLASS,
 
@@ -251,53 +185,6 @@ HP_BEGIN_DECL_ENUM(NSUInteger, RegClass) {
     RegClass_Special = 103
 }
 HP_END_DECL_ENUM(RegClass);
-
-HP_BEGIN_DECL_ENUM(NSUInteger, CPUStateFieldIndexes) {
-    CSF_FlagIndexC =  0,
-    CSF_FlagIndexP =  2,
-    CSF_FlagIndexA =  4,
-    CSF_FlagIndexZ =  6,
-    CSF_FlagIndexS =  7,
-    CSF_FlagIndexT =  8,
-    CSF_FlagIndexI =  9,
-    CSF_FlagIndexD = 10,
-    CSF_FlagIndexO = 11
-}
-HP_END_DECL_ENUM(CPUStateFieldIndexes);
-
-HP_BEGIN_DECL_OPTIONS(NSUInteger, CPUStateFieldMasks) {
-    CSF_FlagMaskNone = 0,
-    CSF_FlagMaskC = (1 <<  0),
-    CSF_FlagMaskP = (1 <<  2),
-    CSF_FlagMaskA = (1 <<  4),
-    CSF_FlagMaskZ = (1 <<  6),
-    CSF_FlagMaskS = (1 <<  7),
-    CSF_FlagMaskT = (1 <<  8),
-    CSF_FlagMaskI = (1 <<  9),
-    CSF_FlagMaskD = (1 << 10),
-    CSF_FlagMaskO = (1 << 11)
-}
-HP_END_DECL_OPTIONS(CPUStateFieldMasks);
-
-// Calling Conventions
-
-HP_BEGIN_DECL_ENUM(NSUInteger, CallingConvention) {
-    CallingConvention_default = 0,
-
-    CallingConvention_cdecl = 1,
-    CallingConvention_stdcall,
-    CallingConvention_fastcall,
-    CallingConvention_fastcall_borland,
-    CallingConvention_thiscall,
-    CallingConvention_watcom,
-
-    CallingConvention_AAPCS = 10,
-    CallingConvention_AAPCS_VFP,
-
-    CallingConvention_X86_64SysV = 20,
-    CallingConvention_X86_64Win64
-}
-HP_END_DECL_ENUM(CallingConvention);
 
 // File Loaders
 
@@ -330,48 +217,10 @@ HP_END_DECL_ENUM(DFTAddressWidth);
 
 HP_BEGIN_DECL_OPTIONS(NSUInteger, FileLoaderOptions) {
     FLS_None = 0,
-    FLS_ParseObjectiveC = 1
+    FLS_ParseObjectiveC = (1 << 0),
+    FLS_ParseExceptions = (1 << 1)
 }
 HP_END_DECL_OPTIONS(FileLoaderOptions);
-
-HP_BEGIN_DECL_OPTIONS(NSUInteger, AnalysisOptions) {
-    AO_None                     = 0,
-    AO_PureProcedureTextSection = (1 << 0)
-}
-HP_END_DECL_OPTIONS(AnalysisOptions);
-#define DEFAULT_ANALYSIS_OPTIONS    AO_None
-
-// Disassembler
-
-HP_BEGIN_DECL_OPTIONS(NSUInteger, DisassembleOptions) {
-    DO_None               = 0,
-    DO_FollowCode         = (1 << 0),
-    DO_ProcedureMode      = (1 << 1),
-    DO_ProceedToAnalysis  = (1 << 2),
-    DO_PropagateSignature = (1 << 3)
-}
-HP_END_DECL_OPTIONS(DisassembleOptions);
-
-// Debugger
-
-HP_BEGIN_DECL_ENUM(NSUInteger, DebuggerState) {
-    STATE_NotConnected,
-    STATE_Connected,
-    STATE_Running,
-    STATE_Signaled,
-    STATE_Terminated,
-    STATE_Exited
-}
-HP_END_DECL_ENUM(DebuggerState);
-
-HP_BEGIN_DECL_ENUM(NSUInteger, DebuggerType) {
-    Debugger_None,
-    Debugger_Local,
-    Debugger_HopperDebuggerServer,
-    Debugger_GDBRemote,
-    Debugger_DebugServer
-}
-HP_END_DECL_ENUM(DebuggerType);
 
 // Call Reference
 
@@ -383,24 +232,40 @@ HP_BEGIN_DECL_ENUM(NSUInteger, CallReferenceType) {
 }
 HP_END_DECL_ENUM(CallReferenceType);
 
-// Decompiler
-#define DECOMPILER_DEFAULT_OPTIONS (Decompiler_RemoveDeadCode | Decompiler_RemoveMacros)
+// Signatures
 
-HP_BEGIN_DECL_OPTIONS(NSUInteger, DecompilerOptions) {
-    Decompiler_None = 0,
-    Decompiler_RemoveDeadCode = 1,
-    Decompiler_RemoveMacros = 2
+HP_BEGIN_DECL_ENUM(uint8_t, SignatureCreationReason) {
+    SCReason_None,
+    SCReason_Unknown,                   // Unknown reason
+    SCReason_GuessedFromDecompilation,  // Signature built during the decompilation process
+    SCReason_GuessedFromDataFlow,       // Signature built from the data flow analysis.
+    SCReason_Called,                    // Signature built from a method call
+    SCReason_Database,                  // A known signature, from the embedded database
+    SCReason_Demangling,                // From demangling, or decoding a signature string
+    SCReason_User                       // Defined by the user
 }
-HP_END_DECL_OPTIONS(DecompilerOptions);
+HP_END_DECL_ENUM(SignatureCreationReason);
 
-// View Modes
+// Calling Conventions
 
-HP_BEGIN_DECL_ENUM(NSUInteger, AssemblyViewMode) {
-    ASMVMode_Assembly,
-    ASMVMode_CFG,
-    ASMVMode_PseudoCode,
-    ASMVMode_Hex
+HP_BEGIN_DECL_ENUM(NSUInteger, CallingConvention) {
+    CallingConvention_default = 0,
+    
+    CallingConvention_cdecl = 1,
+    CallingConvention_stdcall,
+    CallingConvention_fastcall,
+    CallingConvention_fastcall_borland,
+    CallingConvention_thiscall,
+    CallingConvention_watcom,
+    CallingConvention_pascal,
+    CallingConvention_clrcall,
+    
+    CallingConvention_AAPCS = 10,
+    CallingConvention_AAPCS_VFP,
+    
+    CallingConvention_X86_64SysV = 20,
+    CallingConvention_X86_64Win64
 }
-HP_END_DECL_ENUM(AssemblyViewMode);
+HP_END_DECL_ENUM(CallingConvention);
 
 #endif

@@ -1,7 +1,7 @@
 //
 // Hopper Disassembler SDK
 //
-// (c)2016 - Cryptic Apps SARL. All Rights Reserved.
+// (c) Cryptic Apps SARL. All Rights Reserved.
 // https://www.hopperapp.com
 //
 // THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
@@ -27,17 +27,20 @@
 
 #define DISASM_OPERAND_REGISTER_INDEX_MASK              0x00000000FFFFFFFFllu
 #define DISASM_OPERAND_TYPE_MASK                        0xFFFF000000000000llu
+#define DISASM_OPERAND_MAIN_TYPE_MASK                   0xF000000000000000llu
+#define DISASM_OPERAND_TYPE_OPTIONS_MASK                0x0F00000000000000llu
 #define DISASM_OPERAND_REG_CLASS_MASK                   0x0000FFFF00000000llu
 #define DISASM_OPERAND_TYPE_AND_REG_CLASS_MASK          0xFFFFFFFF00000000llu
 
 // Type
-#define DISASM_OPERAND_NO_OPERAND                       0x8000000000000000llu
-#define DISASM_OPERAND_CONSTANT_TYPE                    0x4000000000000000llu
-#define DISASM_OPERAND_MEMORY_TYPE                      0x2000000000000000llu
-#define DISASM_OPERAND_REGISTER_TYPE                    0x1000000000000000llu
-#define DISASM_OPERAND_ABSOLUTE                         0x0800000000000000llu
-#define DISASM_OPERAND_RELATIVE                         0x0400000000000000llu
-#define DISASM_OPERAND_OTHER                            0x0200000000000000llu
+#define DISASM_OPERAND_NO_OPERAND                       0x8000000000000000llu       // Operand unused
+#define DISASM_OPERAND_CONSTANT_TYPE                    0x4000000000000000llu       // A constant value (in the immediate field). Can be tagged as absolute, or relative (for instance, for JMP addresses). By default, value is an integer, but it can be a float if tag is present.
+#define DISASM_OPERAND_MEMORY_TYPE                      0x2000000000000000llu       // A memory access
+#define DISASM_OPERAND_REGISTER_TYPE                    0x1000000000000000llu       // A set a registers
+#define DISASM_OPERAND_ABSOLUTE                         0x0800000000000000llu       // For constant values: this value is absolute
+#define DISASM_OPERAND_RELATIVE                         0x0400000000000000llu       // For constant values: this value is relative
+#define DISASM_OPERAND_FLOAT_CONSTANT                   0x0200000000000000llu       // For constant values: this is a floating point value
+#define DISASM_OPERAND_OTHER                            0x0100000000000000llu       // An unidentified type, store as a plain raw string in userString
 
 #define DISASM_BUILD_REGISTER_CLS_MASK(CLS)             (0x100000000llu << (CLS))
 #define DISASM_BUILD_REGISTER_INDEX_MASK(INDEX)         (1llu << (INDEX))
@@ -75,11 +78,13 @@
 #define DISASM_OPERAND_ARM_VFP_DOUBLE_REG_INDEX         4
 #define DISASM_OPERAND_ARM_VFP_QUAD_REG_INDEX           5
 #define DISASM_OPERAND_ARM_MEDIA_REG_INDEX              6
+#define DISASM_OPERAND_ARM_SPECIAL_REG_INDEX            7
 
 #define DISASM_OPERAND_ARM_VFP_SINGLE_REG               DISASM_BUILD_REGISTER_CLS_MASK(DISASM_OPERAND_ARM_VFP_SINGLE_REG_INDEX)
 #define DISASM_OPERAND_ARM_VFP_DOUBLE_REG               DISASM_BUILD_REGISTER_CLS_MASK(DISASM_OPERAND_ARM_VFP_DOUBLE_REG_INDEX)
 #define DISASM_OPERAND_ARM_VFP_QUAD_REG                 DISASM_BUILD_REGISTER_CLS_MASK(DISASM_OPERAND_ARM_VFP_QUAD_REG_INDEX)
 #define DISASM_OPERAND_ARM_MEDIA_REG                    DISASM_BUILD_REGISTER_CLS_MASK(DISASM_OPERAND_ARM_MEDIA_REG_INDEX)
+#define DISASM_OPERAND_ARM_SPECIAL_REG                  DISASM_BUILD_REGISTER_CLS_MASK(DISASM_OPERAND_ARM_SPECIAL_REG_INDEX)
 
 #define DISASM_REG0  DISASM_BUILD_REGISTER_INDEX_MASK(0)
 #define DISASM_REG1  DISASM_BUILD_REGISTER_INDEX_MASK(1)
@@ -191,8 +196,21 @@ typedef enum {
     DISASM_SHIFT_LSR,
     DISASM_SHIFT_ASR,
     DISASM_SHIFT_ROR,
-    DISASM_SHIFT_RRX
+    DISASM_SHIFT_RRX,
+    DISASM_SHIFT_MSL
 } DisasmShiftMode;
+
+typedef enum {
+    DISASM_EXT_NONE,
+    DISASM_EXT_UXTB,
+    DISASM_EXT_UXTH,
+    DISASM_EXT_UXTW,
+    DISASM_EXT_UXTX,
+    DISASM_EXT_SXTB,
+    DISASM_EXT_SXTH,
+    DISASM_EXT_SXTW,
+    DISASM_EXT_SXTX
+} DisasmExtMode;
 
 typedef enum {
     DISASM_ACCESS_NONE  =  0x0,
@@ -218,25 +236,35 @@ typedef enum {
 } DisasmSegmentReg;
 
 typedef struct {
-    uint8_t lockPrefix;
-    uint8_t repnePrefix;
-    uint8_t repPrefix;
-    uint8_t segmentOverride;
+    unsigned lockPrefix : 1;
+    unsigned repnePrefix : 1;
+    unsigned repPrefix : 1;
+    unsigned bndPrefix : 1;
+    unsigned segmentOverride : 4;
 } DisasmPrefix;
 
 typedef struct {
-    uint8_t OF_flag;
-    uint8_t SF_flag;
-    uint8_t ZF_flag;
-    uint8_t AF_flag;
-    uint8_t PF_flag;
-    uint8_t CF_flag;
-    uint8_t TF_flag;
-    uint8_t IF_flag;
-    uint8_t DF_flag;
-    uint8_t NT_flag;
-    uint8_t RF_flag;
+    DisasmEflagsState OF_flag;
+    DisasmEflagsState SF_flag;
+    DisasmEflagsState ZF_flag;
+    DisasmEflagsState AF_flag;
+    DisasmEflagsState PF_flag;
+    DisasmEflagsState CF_flag;
+    DisasmEflagsState TF_flag;
+    DisasmEflagsState IF_flag;
+    DisasmEflagsState DF_flag;
+    DisasmEflagsState NT_flag;
+    DisasmEflagsState RF_flag;
 } DisasmEFLAGS;
+
+typedef struct {
+    unsigned ARMSBit : 1;                   // ARM specific. Set to 1 if 'S' flag.
+    unsigned ARMWriteBack : 1;              // ARM specific: Set to 1 if writeback flag (!).
+    unsigned ARMSpecial : 1;                // ARM specific: Set to 1 if special flag (^).
+    unsigned ARMThumb : 1;                  // ARM specifig: Set to 1 if thumb instruction.
+
+    unsigned changeNextInstrMode : 1;       // The instruction may change the next instruction CPU mode.
+} DisasmInstrFlags;
 
 /// Define a memory access in the form [BASE_REGISTERS + (INDEX_REGISTERS) * SCALE + DISPLACEMENT]
 typedef struct {
@@ -266,10 +294,7 @@ typedef struct  {
     /// Anyway, it must reflects the exact value of the PC register if read from the instruction.
     Address             pcRegisterValue;
 
-    uint8_t             ARMSBit;                    // ARM specific. Set to 1 if 'S' flag.
-    uint8_t             ARMWriteBack;               // ARM specific: Set to 1 if writeback flag (!).
-    uint8_t             ARMSpecial;                 // ARM specific: Set to 1 if special flag (^).
-    uint8_t             ARMThumb;                   // ARM specifig: Set to 1 if thumb instruction.
+    DisasmInstrFlags    specialFlags;
 } DisasmInstruction;
 
 typedef struct {
@@ -285,10 +310,14 @@ typedef struct {
 
     /// Shifting used when the type is DISASM_OPERAND_REGISTER_TYPE
     DisasmShiftMode    shiftMode;                       /// Shifting mode
+    DisasmExtMode      extMode;                         /// Extension mode
     int32_t            shiftAmount;                     /// Shifting amount (if not shifted by a register)
     int32_t            shiftByReg;                      /// Shifting register
 
-    int64_t            immediateValue;                  /// The immediate value for this operand, if known.
+    union {
+        int64_t            immediateValue;              /// The immediate value for this operand, if known.
+        double             immediateDoubleValue;
+    };
     uint8_t            isBranchDestination;             /// A value different from 0 if the operand is used to compute a destination address for a branch instruction
 
     union {

@@ -1,7 +1,7 @@
 //
 // Hopper Disassembler SDK
 //
-// (c)2016 - Cryptic Apps SARL. All Rights Reserved.
+// (c) Cryptic Apps SARL. All Rights Reserved.
 // https://www.hopperapp.com
 //
 // THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
@@ -23,6 +23,6 @@
 /// A description contains at least a HPM_TITLE key, and a HPM_SELECTOR or a HPM_SUBMENU key.
 /// The HPM_SELECTOR is a string which contains a selector name, which will be resolved by
 /// Hopper at runtime, using the NSSelectorFromString system method.
-- (NSArray *)toolMenuDescription;
+- (nonnull NSArray<NSDictionary<NSString *, id> *> *)toolMenuDescription;
 
 @end

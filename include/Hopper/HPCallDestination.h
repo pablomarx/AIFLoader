@@ -12,10 +12,14 @@
 
 #import "CommonTypes.h"
 
-@protocol HPCallReference
+@protocol HPCallDestination
 
-- (CallReferenceType)type;
-- (Address)from;
-- (Address)to;
+- (Address)address;
+- (void)setAddress:(Address)address;
+
+- (BOOL)cpuModeIsKnown;
+- (void)setCpuModeIsKnown:(BOOL)b;
+- (uint8_t)cpuMode;
+- (void)setCpuMode:(uint8_t)cpuMode;
 
 @end

@@ -1,7 +1,7 @@
 //
 // Hopper Disassembler SDK
 //
-// (c)2016 - Cryptic Apps SARL. All Rights Reserved.
+// (c) Cryptic Apps SARL. All Rights Reserved.
 // https://www.hopperapp.com
 //
 // THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
@@ -21,11 +21,11 @@
 
 @property (assign) BOOL isChecked;
 
-@property (strong) HopperUUID *cpuUUID;
-@property (strong) NSString *cpuFamily;
-@property (strong) NSString *cpuSubFamily;
+@property (nullable, strong) HopperUUID *cpuUUID;
+@property (nullable, strong) NSString *cpuFamily;
+@property (nullable, strong) NSString *cpuSubFamily;
 
-@property (strong) NSArray *stringList;
+@property (nullable, strong) NSArray *stringList;
 @property (assign) NSUInteger selectedStringIndex;
 
 @end

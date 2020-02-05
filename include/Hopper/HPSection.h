@@ -1,7 +1,7 @@
 //
 // Hopper Disassembler SDK
 //
-// (c)2016 - Cryptic Apps SARL. All Rights Reserved.
+// (c) Cryptic Apps SARL. All Rights Reserved.
 // https://www.hopperapp.com
 //
 // THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
@@ -16,15 +16,20 @@
 
 @protocol HPSection
 
-@property (nonatomic, copy) NSString *sectionName;
+@property (nonatomic, nullable, copy) NSString *sectionName;
 
 @property (nonatomic, assign) uint64_t fileOffset;
 @property (nonatomic, assign) uint64_t fileLength;
 
-@property (nonatomic) BOOL pureCodeSection;
-@property (nonatomic) BOOL pureDataSection;
-@property (nonatomic) BOOL containsCode;
-@property (nonatomic) BOOL pureCStringSection;
+@property (nonatomic, assign) BOOL pureCodeSection;
+@property (nonatomic, assign) BOOL pureDataSection;
+@property (nonatomic, assign) BOOL containsCode;
+@property (nonatomic, assign) BOOL pureCStringSection;
+@property (nonatomic, assign) BOOL zeroFillSection;
+
+@property (nonatomic, assign) uint64_t  flags;
+
+- (NSInteger)sectionIndex;
 
 - (Address)startAddress;
 - (size_t)length;
@@ -33,9 +38,9 @@
 
 - (BOOL)hasDataOnDisk;
 
-- (NSObject<HPSegment> *)segment;
-- (NSObject<HPSection> *)previousSection;
-- (NSObject<HPSection> *)nextSection;
+- (nonnull NSObject<HPSegment> *)segment;
+- (nullable NSObject<HPSection> *)previousSection;
+- (nullable NSObject<HPSection> *)nextSection;
 
 - (BOOL)sectionContainsAddress:(Address)address;
 

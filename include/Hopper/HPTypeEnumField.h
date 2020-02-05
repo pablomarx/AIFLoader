@@ -12,10 +12,13 @@
 
 #import "CommonTypes.h"
 
-@protocol HPCallReference
+@protocol HPTypeEnumField
 
-- (CallReferenceType)type;
-- (Address)from;
-- (Address)to;
+- (nullable NSString *)name;
+- (void)setName:(nullable NSString *)name;
+
+- (int64_t)value;
+- (void)setValue:(int64_t)value;
 
 @end
+

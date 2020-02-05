@@ -12,10 +12,17 @@
 
 #import "CommonTypes.h"
 
-@protocol HPCallReference
+@protocol HPTypeDesc;
+@protocol HPMethodSignature;
 
-- (CallReferenceType)type;
-- (Address)from;
-- (Address)to;
+@protocol HPMethodArgument
+
+- (nonnull NSObject<HPMethodSignature> *)owner;
+
+- (nullable NSString *)name;
+- (void)setName:(nullable NSString *)name;
+
+- (nonnull NSObject<HPTypeDesc> *)type;
+- (void)setType:(nonnull NSObject<HPTypeDesc> *)type;
 
 @end

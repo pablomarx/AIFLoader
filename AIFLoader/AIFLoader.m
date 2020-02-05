@@ -34,7 +34,7 @@
   return self;
 }
 
-- (HopperUUID *)pluginUUID {
+- (NSObject<HPHopperUUID> *)pluginUUID {
   return [_services UUIDWithString:@"491112f1-cf50-458d-8f43-ad59691bc8e8"];
 }
 
@@ -62,6 +62,13 @@
   return @"0.1";
 }
 
+- (nonnull NSArray<NSString *> *)commandLineIdentifiers {
+  return @[@"AIF"];
+}
+
++ (int)sdkVersion {
+  return HOPPER_CURRENT_SDK_VERSION;
+}
 
 #pragma mark - FileLoader
 - (BOOL)canLoadDebugFiles {
@@ -109,6 +116,12 @@
   [type setCpuSubFamily:@"v6"];
   [type setShortDescriptionString:@"arm_aif"];
   return @[type];
+}
+
+- (nullable NSArray<NSObject<HPDetectedFileType> *> *)detectedTypesForData:(nonnull NSData *)data
+                                                               ofFileNamed:(nullable NSString *)filename
+{
+  return [self detectedTypesForData:data];
 }
 
 - (void) processDebuggingSymbolsFromData:(const void *)bytes
@@ -187,7 +200,7 @@
 /// It should also fill information about the CPU by setting the CPU family, the CPU subfamily and optionally the CPU plugin UUID.
 /// The CPU plugin UUID should be set ONLY if you want a specific CPU plugin to be used. If you don't set it, it will be later set by Hopper.
 /// During long operations, you should call the provided "callback" block to give a feedback to the user on the loading process.
-- (FileLoaderLoadingStatus)loadData:(NSData *)data usingDetectedFileType:(NSObject<HPDetectedFileType> *)fileType options:(FileLoaderOptions)options forFile:(NSObject<HPDisassembledFile> *)file usingCallback:(FileLoadingCallbackInfo)callback 
+- (FileLoaderLoadingStatus)loadData:(NSData *)data usingDetectedFileType:(NSObject<HPDetectedFileType> *)fileType options:(FileLoaderOptions)options forFile:(NSObject<HPDisassembledFile> *)file usingCallback:(FileLoadingCallbackInfo)callback
 {
   if ([[self detectedTypesForData:data] count] == 0) {
     return DIS_BadFormat;
@@ -272,12 +285,19 @@
   return DIS_NotSupported;
 }
 
-/// Hopper changed the base address of the file, and needs help to fix it up.
-/// The address of every segment was shifted of "slide" bytes.
 - (void)fixupRebasedFile:(NSObject<HPDisassembledFile> *)file withSlide:(int64_t)slide originalFileData:(NSData *)fileData
 {
-  
+
 }
+
+- (nullable NSData *)extractFromData:(nonnull NSData *)data
+               usingDetectedFileType:(nonnull NSObject<HPDetectedFileType> *)fileType
+                  returnAdjustOffset:(nullable uint64_t *)adjustOffset
+                returnAdjustFilename:(NSString * _Nullable __autoreleasing * _Nullable)newFilename
+{
+  return nil;
+}
+
 
 /// Extract a file
 /// In the case of a "composite loader", extract the NSData object of the selected file.

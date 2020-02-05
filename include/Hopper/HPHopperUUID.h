@@ -10,12 +10,11 @@
 // PARTICULAR PURPOSE.
 //
 
-#import "CommonTypes.h"
+#import <Foundation/Foundation.h>
 
-@protocol HPCallReference
+@protocol HPHopperUUID
 
-- (CallReferenceType)type;
-- (Address)from;
-- (Address)to;
+- (nonnull NSString *)UUIDString;
 
 @end
+
