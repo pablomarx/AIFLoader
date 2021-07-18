@@ -25,6 +25,79 @@
   uint32_t _debugSize;
 }
 
+#pragma mark - AIF
+- (void) processDebuggingSymbolsFromData:(const void *)bytes
+                                intoFile:(NSObject<HPDisassembledFile> *)file
+{
+  uint8_t asdversion = OSReadBigInt16(bytes, 6) & 0xff;
+  if (asdversion != 2) {
+    NSLog(@"Unsupported ASD version: %i", asdversion);
+    return;
+  }
+
+  uint8_t language = OSReadBigInt16(bytes, 2) & 0xff;
+  if (language != 1) {
+    NSLog(@"Unsupported language: %i", language);
+    return;
+  }
+
+  uint32_t readOnlySize = OSReadBigInt32(bytes, 16);
+  if (readOnlySize != _readOnlySize) {
+    NSLog(@"Read only size differs. AIF header: 0x%08x, debug header: 0x%08x", _readOnlySize, readOnlySize);
+    return;
+  }
+
+  uint32_t readWriteSize = OSReadBigInt32(bytes, 20);
+  if (readWriteSize != _readWriteSize) {
+    NSLog(@"Read write size differs. AIF header: 0x%08x, debug header: 0x%08x", _readWriteSize, readWriteSize);
+    return;
+  }
+
+  uint32_t readWriteOffset = OSReadBigInt32(bytes, 12);
+  if (readWriteOffset != _readWriteOffset) {
+    NSLog(@"Read write offset differs. AIF header: 0x%08x, debug header: 0x%08x", _readWriteOffset, readWriteOffset);
+    return;
+  }
+
+  uint32_t debugSize = OSReadBigInt32(bytes, 28);
+  if (debugSize != _debugSize) {
+    NSLog(@"Debug size differs. AIF header: 0x%08x, debug header: 0x%08x", _debugSize, debugSize);
+    return;
+  }
+
+  bytes += 32; // skip past header
+
+  uint32_t numOfEntries = OSReadBigInt32(bytes, 0);
+  bytes+=4; // advance
+
+  const uint8_t *table = bytes + (numOfEntries * 8);
+
+  uint32_t entry = 0;
+  while (entry < numOfEntries) {
+    int symbol = OSReadBigInt32(bytes, 0);
+    int type = ((symbol >> 24) & 0xff);
+    int tableIndex = (symbol & 0x00ffffff);
+    int address = OSReadBigInt32(bytes, 4);
+
+    uint8_t nameLen = table[tableIndex];
+    NSString *name = [[NSString alloc] initWithBytes:table + tableIndex + 1
+                                              length:nameLen
+                                            encoding:NSASCIIStringEncoding];
+
+    if ((type & 2) == 2) { // symbol names code
+      [file setName:name forVirtualAddress:address reason:NCReason_Import];
+      [file addPotentialProcedure:address];
+    }
+    else if ((type & 4) == 4) { // symbol names data
+      [file setName:name forVirtualAddress:address reason:NCReason_Import];
+    }
+
+    bytes += 8;
+    entry++;
+  }
+}
+
+
 #pragma mark - HopperPlugin
 - (instancetype)initWithHopperServices:(NSObject<HPHopperServices> *)services {
   self = [super init];
@@ -76,10 +149,12 @@
 }
 
 /// Returns an array of DetectedFileType objects.
-- (NSArray *)detectedTypesForData:(NSData *)data {
-  if ([data length] < AIF_HEADER_SIZE) return @[];
-  
-  const void *bytes = (const void *)[data bytes];
+- (nullable NSArray<NSObject<HPDetectedFileType> *> *)detectedTypesForData:(nonnull const void *)bytes
+                                                                    length:(size_t)length
+                                                               ofFileNamed:(nullable NSString *)filename
+{
+  if (length < AIF_HEADER_SIZE) return @[];
+
   if (OSReadBigInt32(bytes, 0) != 0xE1A00000) { // NOP, aka mov r0, r0
     DebugLog(@"Expected NOP at 0x0");
     return @[];
@@ -88,19 +163,19 @@
     DebugLog(@"Expected NOP at 0x40");
     return @[];
   }
-  
+
   uint32_t readOnlySize = OSReadBigInt(bytes, 0x14);
   uint32_t readWriteSize = OSReadBigInt(bytes, 0x18);
   uint32_t debugSize = OSReadBigInt(bytes, 0x1c);
 
-  if ([data length] != readOnlySize + readWriteSize + debugSize + AIF_HEADER_SIZE) {
-    DebugLog(@"data length (%i) != readOnlySize (%i) + readWriteSize (%i) + debugSize (%i) + AIF_HEADER_SIZE (%i)", (int)[data length], readOnlySize, readWriteSize, debugSize, AIF_HEADER_SIZE);
+  if (length != readOnlySize + readWriteSize + debugSize + AIF_HEADER_SIZE) {
+    DebugLog(@"data length (%i) != readOnlySize (%i) + readWriteSize (%i) + debugSize (%i) + AIF_HEADER_SIZE (%i)", (int)length, readOnlySize, readWriteSize, debugSize, AIF_HEADER_SIZE);
 
     return @[];
   }
-  
+
   DebugLog(@"Good AIF header! r/o size: %i, r/w size: %i, debug size: %i", readOnlySize, readWriteSize, debugSize);
-  
+
   _readOnlySize = readOnlySize;
   _readWriteSize = readWriteSize;
   _readWriteOffset = OSReadBigInt32(bytes, 0x34);
@@ -108,7 +183,7 @@
     _readWriteOffset = _readOnlySize;
   }
   _debugSize = debugSize;
-  
+
   NSObject<HPDetectedFileType> *type = [_services detectedType];
   [type setFileDescription:@"ARM Image Format"];
   [type setAddressWidth:AW_32bits];
@@ -118,81 +193,17 @@
   return @[type];
 }
 
-- (nullable NSArray<NSObject<HPDetectedFileType> *> *)detectedTypesForData:(nonnull NSData *)data
-                                                               ofFileNamed:(nullable NSString *)filename
+
+/// Extract a file
+/// In the case of a "composite loader", extract the NSData object of the selected file.
+- (nullable NSData *)extractFromData:(nonnull const void *)bytes
+                              length:(size_t)length
+               usingDetectedFileType:(nonnull NSObject<HPDetectedFileType> *)fileType
+                    originalFileName:(nullable NSString *)filename
+                  returnAdjustOffset:(nullable uint64_t *)adjustOffset
+                returnAdjustFilename:(NSString * _Nullable __autoreleasing * _Nullable)newFilename
 {
-  return [self detectedTypesForData:data];
-}
-
-- (void) processDebuggingSymbolsFromData:(const void *)bytes
-                                intoFile:(NSObject<HPDisassembledFile> *)file
-{
-  uint8_t asdversion = OSReadBigInt16(bytes, 6) & 0xff;
-  if (asdversion != 2) {
-    NSLog(@"Unsupported ASD version: %i", asdversion);
-    return;
-  }
-  
-  uint8_t language = OSReadBigInt16(bytes, 2) & 0xff;
-  if (language != 1) {
-    NSLog(@"Unsupported language: %i", language);
-    return;
-  }
-
-  uint32_t readOnlySize = OSReadBigInt32(bytes, 16);
-  if (readOnlySize != _readOnlySize) {
-    NSLog(@"Read only size differs. AIF header: 0x%08x, debug header: 0x%08x", _readOnlySize, readOnlySize);
-    return;
-  }
-  
-  uint32_t readWriteSize = OSReadBigInt32(bytes, 20);
-  if (readWriteSize != _readWriteSize) {
-    NSLog(@"Read write size differs. AIF header: 0x%08x, debug header: 0x%08x", _readWriteSize, readWriteSize);
-    return;
-  }
-
-  uint32_t readWriteOffset = OSReadBigInt32(bytes, 12);
-  if (readWriteOffset != _readWriteOffset) {
-    NSLog(@"Read write offset differs. AIF header: 0x%08x, debug header: 0x%08x", _readWriteOffset, readWriteOffset);
-    return;
-  }
-
-  uint32_t debugSize = OSReadBigInt32(bytes, 28);
-  if (debugSize != _debugSize) {
-    NSLog(@"Debug size differs. AIF header: 0x%08x, debug header: 0x%08x", _debugSize, debugSize);
-    return;
-  }
-
-  bytes += 32; // skip past header
-
-  uint32_t numOfEntries = OSReadBigInt32(bytes, 0);
-  bytes+=4; // advance
-  
-  const uint8_t *table = bytes + (numOfEntries * 8);
-
-  uint32_t entry = 0;
-  while (entry < numOfEntries) {
-    int symbol = OSReadBigInt32(bytes, 0);
-    int type = ((symbol >> 24) & 0xff);
-    int tableIndex = (symbol & 0x00ffffff);
-    int address = OSReadBigInt32(bytes, 4);
-
-    uint8_t nameLen = table[tableIndex];
-    NSString *name = [[NSString alloc] initWithBytes:table + tableIndex + 1
-                                              length:nameLen
-                                            encoding:NSASCIIStringEncoding];
-
-    if ((type & 2) == 2) { // symbol names code
-      [file setName:name forVirtualAddress:address reason:NCReason_Import];
-      [file addPotentialProcedure:address];
-    }
-    else if ((type & 4) == 4) { // symbol names data
-      [file setName:name forVirtualAddress:address reason:NCReason_Import];
-    }
-    
-    bytes += 8;
-    entry++;
-  }
+  return nil;
 }
 
 /// Load a file.
@@ -200,25 +211,28 @@
 /// It should also fill information about the CPU by setting the CPU family, the CPU subfamily and optionally the CPU plugin UUID.
 /// The CPU plugin UUID should be set ONLY if you want a specific CPU plugin to be used. If you don't set it, it will be later set by Hopper.
 /// During long operations, you should call the provided "callback" block to give a feedback to the user on the loading process.
-- (FileLoaderLoadingStatus)loadData:(NSData *)data usingDetectedFileType:(NSObject<HPDetectedFileType> *)fileType options:(FileLoaderOptions)options forFile:(NSObject<HPDisassembledFile> *)file usingCallback:(FileLoadingCallbackInfo)callback
+- (FileLoaderLoadingStatus)loadData:(nonnull const void *)bytes
+                             length:(size_t)length
+              usingDetectedFileType:(nonnull NSObject<HPDetectedFileType> *)fileType
+                            options:(FileLoaderOptions)options
+                            forFile:(nonnull NSObject<HPDisassembledFile> *)file
+                      usingCallback:(nullable FileLoadingCallbackInfo)callback
 {
-  if ([[self detectedTypesForData:data] count] == 0) {
+  if ([[self detectedTypesForData:bytes length:length ofFileNamed:nil] count] == 0) {
     return DIS_BadFormat;
   }
-  
-  const void *bytes = (const void *)[data bytes];
 
   uint32_t readOnlySize = OSReadBigInt(bytes, 0x14);
   uint32_t readWriteSize = OSReadBigInt(bytes, 0x18);
   uint32_t debugSize = OSReadBigInt(bytes, 0x1c);
 
   uint32_t fileOffset = AIF_HEADER_SIZE;
-  
+
   NSObject<HPSection> *(^createSegmentAndSection)(uint32_t, uint32_t, uint32_t, NSString *) = ^NSObject<HPSection> *(uint32_t fileOffset, uint32_t segmentOffset, uint32_t size, NSString *name)
   {
     NSObject<HPSegment> *segment = [file addSegmentAt:segmentOffset size:size];
     NSObject<HPSection> *section = [segment addSectionAt:segmentOffset size:size];
-    
+
     segment.segmentName = name;
     section.sectionName = [name lowercaseString];
 
@@ -229,14 +243,14 @@
 
     return section;
   };
-  
+
   if (readOnlySize != 0) {
     NSObject<HPSection> *section = createSegmentAndSection(fileOffset, 0, readOnlySize, @"CODE");
-    
+
     section.sectionName = @"code";
     section.pureCodeSection = YES;
     section.containsCode = YES;
-    
+
     NSData *segmentData = [NSData dataWithBytes:bytes + fileOffset length:readOnlySize];
     section.segment.mappedData = segmentData;
 
@@ -245,13 +259,13 @@
 
     fileOffset += readOnlySize;
   }
-  
+
   if (readWriteSize != 0) {
     uint32_t segmentOffset = OSReadBigInt32(bytes, 0x34);
     if (segmentOffset == 0) {
       segmentOffset = readOnlySize;
     }
-    
+
     NSObject<HPSection> *section = createSegmentAndSection(fileOffset, segmentOffset, readWriteSize, @"DATA");
     section.pureDataSection = YES;
     section.containsCode = NO;
@@ -266,46 +280,48 @@
     [self processDebuggingSymbolsFromData:bytes + fileOffset
                                  intoFile:file];
 
-    
+
     fileOffset += debugSize;
   }
-  
+
   file.cpuFamily = @"armb";
   file.cpuSubFamily = @"v6";
   [file setAddressSpaceWidthInBits:32];
-  
-  [file addEntryPoint:0];
 
+  [file addEntryPoint:0];
+  callback(@"Loaded ARM Image File", 1.00);
   return DIS_OK;
 }
 
-- (FileLoaderLoadingStatus)loadDebugData:(NSData *)data forFile:(NSObject<HPDisassembledFile> *)file usingCallback:(FileLoadingCallbackInfo)callback
+
+- (FileLoaderLoadingStatus)loadDebugData:(nonnull const void *)bytes
+                                  length:(size_t)length
+                                 forFile:(nonnull NSObject<HPDisassembledFile> *)file
+                           usingCallback:(nullable FileLoadingCallbackInfo)callback
 {
-  // Not invoked, since we never say debugData=YES on the HPDetectedFileType
   return DIS_NotSupported;
 }
 
-- (void)fixupRebasedFile:(NSObject<HPDisassembledFile> *)file withSlide:(int64_t)slide originalFileData:(NSData *)fileData
-{
 
+/// If a loader has extracted data from a container file, it'll get a chance to modify properties
+/// of the final file at the end of the loading process. For that, Hopper will call this method on
+/// the participating extractors in reverse order.
+- (void)setupFile:(nonnull NSObject<HPDisassembledFile> *)file
+afterExtractionOf:(nonnull NSString *)filename
+             type:(nonnull NSObject<HPDetectedFileType> *)fileType
+{
+  // intentionally blank
 }
 
-- (nullable NSData *)extractFromData:(nonnull NSData *)data
-               usingDetectedFileType:(nonnull NSObject<HPDetectedFileType> *)fileType
-                  returnAdjustOffset:(nullable uint64_t *)adjustOffset
-                returnAdjustFilename:(NSString * _Nullable __autoreleasing * _Nullable)newFilename
+/// Hopper changed the base address of the file, and needs help to fix it up.
+/// The address of every segment was shifted of "slide" bytes.
+- (void)fixupRebasedFile:(nonnull NSObject<HPDisassembledFile> *)file
+               withSlide:(int64_t)slide
+        originalFileData:(nonnull const void *)fileBytes
+                  length:(size_t)length
 {
-  return nil;
+  // intentionally blank
 }
 
-
-/// Extract a file
-/// In the case of a "composite loader", extract the NSData object of the selected file.
-- (NSData *)extractFromData:(NSData *)data
-      usingDetectedFileType:(NSObject<HPDetectedFileType> *)fileType
-         returnAdjustOffset:(uint64_t *)adjustOffset
-{
-  return nil;
-}
 
 @end

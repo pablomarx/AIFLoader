@@ -66,6 +66,7 @@ typedef void (^FileLoadingCallbackInfo)(NSString * _Nonnull desc, float progress
 
 - (nonnull NSObject<HPSegment> *)addSegmentAt:(Address)address size:(size_t)length;
 - (nonnull NSObject<HPSegment> *)addSegmentAt:(Address)address toExcludedAddress:(Address)endAddress;
+- (void)removeSegment:(nonnull NSObject<HPSegment> *)segment;
 
 - (nullable NSObject<HPSegment> *)firstSegment;
 - (nullable NSObject<HPSegment> *)lastSegment;
@@ -113,6 +114,7 @@ typedef void (^FileLoadingCallbackInfo)(NSString * _Nonnull desc, float progress
 - (void)setFormat:(ArgFormat)format relativeTo:(Address)relTo forArgument:(NSUInteger)argIndex atVirtualAddress:(Address)virtualAddress;
 
 // Format a number
+- (nonnull NSObject<HPASMLine> *)formatNumber:(uint64_t)immediate at:(Address)address operandIndex:(NSUInteger)operandIndex andBitSize:(uint64_t)bitSize;
 - (nonnull NSObject<HPASMLine> *)formatNumber:(uint64_t)immediate at:(Address)address usingFormat:(ArgFormat)format andBitSize:(uint64_t)bitSize;
 
 // Procedures
